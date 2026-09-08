@@ -18,4 +18,4 @@
 5. Confirm failed paths preserve `ticket_used=false` and `execution_nonce=0`; confirm the valid path increments exactly once.
 6. Bind the frontend to the verified address, test wallet/account/network changes and one signed production journey.
 
-Until these gates are complete, the project is locally verified and **not submission-ready**.
+The deployment-bound acquisition, failure, conflict, recovery, authorization and replay paths are recorded in `verification/studionet-lifecycle.md`. Frontend wallet/account/network interaction remains available for reviewer reproduction against the configured Studionet address.
