@@ -1,0 +1,4 @@
+import test from 'node:test';import assert from 'node:assert/strict';import {address,integer,digest,commit,timestamp,succeeded} from './rules.js';
+test('validates address and integer',()=>{assert.throws(()=>address('0x1'));assert.equal(integer('8'),8);assert.throws(()=>integer('-1'));});
+test('requires complete immutable identifiers',()=>{assert.equal(commit('a'.repeat(40)).length,40);assert.equal(digest('b'.repeat(64)).length,64);assert.throws(()=>commit('a'.repeat(39)));assert.throws(()=>digest('B'.repeat(64)));});
+test('requires expiry and finalized execution proof',()=>{assert.throws(()=>timestamp(''));assert.equal(succeeded({result_name:'MAJORITY_AGREE',consensus_data:{leader_receipt:[{execution_result:'SUCCESS',result:{status:'return'}}]}}),true);assert.equal(succeeded({result_name:'MAJORITY_AGREE'}),false);});

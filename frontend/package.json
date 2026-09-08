@@ -1,0 +1,1 @@
+{"name":"mandate-calldata-drift-guard","version":"0.1.0","private":true,"type":"module","scripts":{"dev":"vite --host 127.0.0.1","build":"vite build","test":"node --test src/rules.test.js"},"dependencies":{"genlayer-js":"1.1.8"},"devDependencies":{"vite":"7.3.6"}}
