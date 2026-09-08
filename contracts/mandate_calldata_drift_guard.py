@@ -24,12 +24,16 @@ def addr(v):
 def now(): return int(datetime.fromisoformat(str(gl.message_raw["datetime"]).replace("Z", "+00:00")).timestamp())
 
 class MandateCalldataDriftGuard(gl.Contract):
-    owner: Address
+    deployer: Address
+    governance_authority: str
     count: u256
     records: TreeMap[u256, str]
 
-    def __init__(self):
-        self.owner = gl.message.sender_address
+    def __init__(self, governance_authority: Address):
+        authority_text = addr(governance_authority)
+        require(re.fullmatch(r"0x[0-9a-f]{40}", authority_text) is not None and authority_text != "0x" + "0"*40 and authority_text != addr(gl.message.sender_address), "INVALID_GOVERNANCE_AUTHORITY")
+        self.deployer = gl.message.sender_address
+        self.governance_authority = authority_text
         self.count = u256(0)
 
     def _load(self, proposal_id):
@@ -38,11 +42,11 @@ class MandateCalldataDriftGuard(gl.Contract):
 
     @gl.public.write
     def register_proposal(self, governance_id: str, executor: Address, repository: str, policy: str) -> int:
-        require(gl.message.sender_address == self.owner, "ONLY_GOVERNANCE_AUTHORITY")
+        require(addr(gl.message.sender_address) == self.governance_authority, "ONLY_GOVERNANCE_AUTHORITY")
         require(1 <= len(governance_id) <= 96 and 20 <= len(policy) <= 4000, "INVALID_MANDATE")
         require(REPO.fullmatch(repository) is not None and ".." not in repository, "INVALID_REPOSITORY")
         executor_text = addr(executor)
-        require(re.fullmatch(r"0x[0-9a-f]{40}", executor_text) is not None and executor_text != "0x" + "0"*40 and executor_text != addr(self.owner), "INVALID_EXECUTOR")
+        require(re.fullmatch(r"0x[0-9a-f]{40}", executor_text) is not None and executor_text != "0x" + "0"*40 and executor_text != self.governance_authority, "INVALID_EXECUTOR")
         self.count += u256(1)
         pid = int(self.count)
         self.records[pid] = encode(dict(id=pid, governance_id=governance_id, executor=executor_text, repository=repository, policy=policy, revision=0, evidence=None, status="DRAFT", findings=None, receipt="", ticket_used=False, execution_nonce=0))
@@ -50,7 +54,7 @@ class MandateCalldataDriftGuard(gl.Contract):
 
     @gl.public.write
     def lock_revision(self, proposal_id: u256, commit: str, mandate_path: str, mandate_digest: str, bundle_path: str, bundle_digest: str, expiry: u256) -> int:
-        require(gl.message.sender_address == self.owner, "ONLY_GOVERNANCE_AUTHORITY")
+        require(addr(gl.message.sender_address) == self.governance_authority, "ONLY_GOVERNANCE_AUTHORITY")
         record = self._load(proposal_id)
         require(not record["ticket_used"], "TICKET_ALREADY_USED")
         require(HEX40.fullmatch(commit) is not None, "INVALID_COMMIT")
@@ -130,7 +134,7 @@ class MandateCalldataDriftGuard(gl.Contract):
 
     @gl.public.write
     def revoke(self, proposal_id: u256) -> str:
-        require(gl.message.sender_address == self.owner, "ONLY_GOVERNANCE_AUTHORITY")
+        require(addr(gl.message.sender_address) == self.governance_authority, "ONLY_GOVERNANCE_AUTHORITY")
         record = self._load(proposal_id)
         require(not record["ticket_used"], "TICKET_ALREADY_USED")
         record["revision"] += 1; record["status"] = "REVOKED"; record["findings"] = None; record["receipt"] = ""
@@ -139,7 +143,7 @@ class MandateCalldataDriftGuard(gl.Contract):
 
     @gl.public.view
     def get_info(self) -> dict:
-        return dict(name="MandateCalldataDriftGuard", version=1, owner=addr(self.owner), proposal_count=int(self.count), max_calls=MAX_CALLS, max_bytes=MAX_BYTES)
+        return dict(name="MandateCalldataDriftGuard", version=2, deployer=addr(self.deployer), governance_authority=self.governance_authority, proposal_count=int(self.count), max_calls=MAX_CALLS, max_bytes=MAX_BYTES)
 
     @gl.public.view
     def get_proposal(self, proposal_id: u256) -> dict:

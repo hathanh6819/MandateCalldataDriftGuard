@@ -8,7 +8,7 @@ Deterministic code can verify repositories, commits, hashes, identities and call
 
 ## Safety properties
 
-- Authority-fixed repository, policy and executor.
+- Constructor-bound governance authority, separate from the deployer; authority-fixed repository, policy and executor.
 - Two separate, fixed-commit GitHub artifacts with complete-byte SHA-256 recomputation.
 - Contract/proposal/governance/executor identity binding in both documents.
 - At most eight calls; deterministic index, target, selector, value and text validation.
@@ -30,10 +30,10 @@ npm run build
 npm run dev
 ```
 
-Current verification: 23 direct real-contract tests pass; GenVM lint and semantic validation pass; 3 frontend rule tests pass; production build passes; production dependency audit reports zero vulnerabilities.
+Current verification uses separate authority and executor identities: direct real-contract tests, GenVM lint and semantic validation, frontend rule tests, production build and production dependency audit.
 
 ## Deployment
 
-Deploy `contracts/mandate_calldata_drift_guard.py` on Studionet with no constructor arguments. The deploying wallet becomes the governance authority. Do not publish evidence fixtures before deployment: both documents must include the exact deployed address and created proposal ID. Configure `VITE_CONTRACT_ADDRESS` only after deployed-source parity and live `get_info` have been verified.
+Deploy `contracts/mandate_calldata_drift_guard.py` on Studionet with the governance-authority test wallet as its only constructor argument. The deploying wallet is recorded for provenance but receives no operational authority. Use the second test wallet as the bound executor. Do not publish evidence fixtures before deployment: both documents must include the exact deployed address and created proposal ID. Configure `VITE_CONTRACT_ADDRESS` only after deployed-source parity and live `get_info` have been verified.
 
 See `docs/DESIGN.md` for proof boundary, threat model, lifecycle and the explicit downstream-executor limitation.

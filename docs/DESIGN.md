@@ -4,7 +4,7 @@
 
 Before issuing a single-use execution ticket, establish that every effect in a fixed decoded call manifest is explicitly covered by a fixed DAO mandate: targets and recipients are disclosed, amounts do not exceed authority, no privilege or upgrade is introduced, and ordering does not create an undisclosed effect.
 
-The evidence does **not** prove that a DAO vote occurred or that arbitrary bytes will be executed by an external chain. The governance authority is the deploying address. It registers the governance identity, repository, executor and policy. The ticket is an authorization receipt for the exact committed manifest; an integrating executor must separately bind its actual execution to that manifest.
+The evidence does **not** prove that a DAO vote occurred or that arbitrary bytes will be executed by an external chain. Deployment explicitly binds a separate governance-authority wallet. That authority registers the governance identity, repository, executor and policy; the deploying wallet receives no operational method. The ticket is an authorization receipt for the exact committed manifest; an integrating executor must separately bind its actual execution to that manifest.
 
 ## Evidence topology
 

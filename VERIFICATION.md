@@ -1,9 +1,9 @@
 # Verification record
 
-- Contract tests: 23 passed.
-- Exact contract source SHA-256: `d2fc187305243353bcca974c3f2f812946ed62d1798665abb3c9ab4c1a65542f`.
+- Contract tests: 24 passed.
+- Exact contract source SHA-256: `690efff12faa20540fc948d65a29027b8e9b7205b0c2fb75961fb473dcf2fc1d`.
 - GenVM lint: passed.
-- GenVM semantic validation: `MandateCalldataDriftGuard`, 7 methods, 2 views, 5 writes, no constructor parameters.
+- GenVM semantic validation must report one constructor parameter: the governance authority, distinct from deployer and executor.
 - Frontend tests: 3 passed.
 - Frontend production build: 454 modules transformed successfully.
 - Production dependency audit: 0 vulnerabilities.
@@ -11,7 +11,7 @@
 
 ## Required live gates
 
-1. Deploy exact source and compare complete deployed-source SHA-256.
+1. Deploy exact source with test wallet A as governance authority and compare complete deployed-source SHA-256. The primary wallet performs deployment only.
 2. Register a proposal with a distinct executor wallet.
 3. Publish deployment-bound aligned and adversarial evidence pairs at immutable commits.
 4. Run aligned, hidden-call/privilege, digest mismatch, identity mismatch, stale revision, expiry, recovery, wrong executor, changed bundle and replay paths on Studionet.

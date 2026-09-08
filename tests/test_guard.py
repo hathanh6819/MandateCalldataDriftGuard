@@ -1,6 +1,7 @@
 import hashlib, json, pytest
 from datetime import datetime, timezone
 
+AUTHORITY = "0x1111111111111111111111111111111111111111"
 EXECUTOR = "0x2222222222222222222222222222222222222222"
 OUTSIDER = "0x3333333333333333333333333333333333333333"
 T = 1893456000
@@ -15,8 +16,9 @@ def warp(vm, timestamp): vm.warp(datetime.fromtimestamp(timestamp, timezone.utc)
 @pytest.fixture
 def setup(direct_vm, direct_deploy):
     warp(direct_vm, T)
-    c = direct_deploy("contracts/mandate_calldata_drift_guard.py")
-    assert c.register_proposal("DAO-42", address(EXECUTOR), "dao/mandates", POLICY) == 1
+    c = direct_deploy("contracts/mandate_calldata_drift_guard.py", AUTHORITY)
+    with direct_vm.prank(address(AUTHORITY)):
+        assert c.register_proposal("DAO-42", address(EXECUTOR), "dao/mandates", POLICY) == 1
     return c, direct_vm
 
 def docs(vm, **changes):
@@ -32,7 +34,8 @@ def prepare(c, vm, mandate=None, bundle=None, hashes=None, statuses=(200,200), f
     default_m, default_b = docs(vm)
     mandate, bundle = mandate or default_m, bundle or default_b
     md, bd = hashes or (hashlib.sha256(mandate).hexdigest(), hashlib.sha256(bundle).hexdigest())
-    rev = c.lock_revision(1, "a"*40, "mandate.json", md, "bundle.json", bd, T+5000)
+    with vm.prank(address(AUTHORITY)):
+        rev = c.lock_revision(1, "a"*40, "mandate.json", md, "bundle.json", bd, T+5000)
     vm.clear_mocks()
     vm.mock_web(r"mandate\.json$", dict(status=statuses[0], body=mandate.decode(errors="replace")))
     vm.mock_web(r"bundle\.json$", dict(status=statuses[1], body=bundle.decode(errors="replace")))
@@ -96,6 +99,17 @@ def test_wrong_executor_and_changed_bundle_cannot_consume(setup):
     assert "BUNDLE_CHANGED" in as_executor(c,vm,"consume_execution_ticket",1,rev,"f"*64)
     assert c.get_proposal(1)==before
 
+def test_deployer_and_executor_cannot_act_as_governance(setup):
+    c,vm=setup
+    from genlayer.gl.vm import UserError
+    before=c.get_proposal(1)
+    with pytest.raises(UserError,match="ONLY_GOVERNANCE_AUTHORITY"):
+        c.lock_revision(1,"a"*40,"m.json","a"*64,"b.json","b"*64,T+100)
+    with vm.prank(address(EXECUTOR)):
+        with pytest.raises(UserError,match="ONLY_GOVERNANCE_AUTHORITY"):
+            c.revoke(1)
+    assert c.get_proposal(1)==before
+
 def test_stale_expiry_revoke_and_recovery(setup):
     c,vm=setup; rev=prepare(c,vm,statuses=(503,200)); assert c.assess_drift(1,rev)=="UNRESOLVED"
     mandate,bundle=docs(vm); rev2=prepare(c,vm,mandate,bundle)
@@ -103,13 +117,16 @@ def test_stale_expiry_revoke_and_recovery(setup):
     with pytest.raises(UserError,match="STALE_REVISION"): c.assess_drift(1,rev)
     assert c.assess_drift(1,rev2)=="ALIGNED"; warp(vm,T+5000)
     assert "EXPIRED" in as_executor(c,vm,"consume_execution_ticket",1,rev2,hashlib.sha256(bundle).hexdigest())
-    warp(vm,T); c.revoke(1); assert c.get_proposal(1)["status"]=="REVOKED"
+    warp(vm,T)
+    with vm.prank(address(AUTHORITY)): c.revoke(1)
+    assert c.get_proposal(1)["status"]=="REVOKED"
 
 @pytest.mark.parametrize("index,value", [(0,""),(1,"0x0000000000000000000000000000000000000000"),(2,"../repo"),(3,"short")])
 def test_invalid_registration_preserves_count(direct_vm,direct_deploy,index,value):
-    warp(direct_vm,T); c=direct_deploy("contracts/mandate_calldata_drift_guard.py"); args=["DAO-42",address(EXECUTOR),"dao/mandates",POLICY]; args[index]=address(value) if index==1 else value
+    warp(direct_vm,T); c=direct_deploy("contracts/mandate_calldata_drift_guard.py",AUTHORITY); args=["DAO-42",address(EXECUTOR),"dao/mandates",POLICY]; args[index]=address(value) if index==1 else value
     from genlayer.gl.vm import UserError
-    with pytest.raises(UserError): c.register_proposal(*args)
+    with direct_vm.prank(address(AUTHORITY)):
+        with pytest.raises(UserError): c.register_proposal(*args)
     assert c.get_info()["proposal_count"]==0
 
 def test_validator_falsifies_changed_semantics(setup, monkeypatch):
