@@ -2,6 +2,8 @@
 
 A GenLayer dApp that detects material drift between an approved DAO mandate and a fixed decoded transaction bundle before issuing a bounded, single-use execution ticket.
 
+Live application: [mandate-calldata-drift-guard.pages.dev](https://mandate-calldata-drift-guard.pages.dev/)
+
 ## Why GenLayer
 
 Deterministic code can verify repositories, commits, hashes, identities and call shapes, but cannot reliably decide whether a decoded action is actually disclosed by a natural-language mandate. Validators independently fetch both artifacts and reach strict consensus over the exact semantic predicates that control authorization.
