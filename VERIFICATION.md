@@ -1,6 +1,7 @@
 # Verification record
 
 - Contract tests: 23 passed.
+- Exact contract source SHA-256: `d2fc187305243353bcca974c3f2f812946ed62d1798665abb3c9ab4c1a65542f`.
 - GenVM lint: passed.
 - GenVM semantic validation: `MandateCalldataDriftGuard`, 7 methods, 2 views, 5 writes, no constructor parameters.
 - Frontend tests: 3 passed.
