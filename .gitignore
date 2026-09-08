@@ -3,5 +3,6 @@ dist/
 artifacts/
 __pycache__/
 .pytest_cache/
+.wrangler/
 .env
 *.keystore
