@@ -1,21 +1,25 @@
-# Verification record
+# V3 verification status
 
-- Contract tests: 24 passed.
-- Exact contract source SHA-256: `690efff12faa20540fc948d65a29027b8e9b7205b0c2fb75961fb473dcf2fc1d`.
-- GenVM lint: passed.
-- GenVM semantic validation must report one constructor parameter: the governance authority, distinct from deployer and executor.
-- Frontend tests: 3 passed.
-- Frontend production build: 454 modules transformed successfully.
-- Production dependency audit: 0 vulnerabilities.
-- Logo SHA-256: `ab1ebd6f07d967d6025864d957077fabbd88d3c92d431338e5747bb1d4c0ca9`; the supplied PNG is used unchanged.
+## Automated release gates
 
-## Required live gates
+- Both contracts pass GenVM lint and schema validation.
+- Direct tests cover ABI decoding, selector authentication, byte hashes, happy-path message emission and single-use consumption.
+- Adversarial tests mutate selector, recipient, amount and calldata length/trailing bytes.
+- Failure tests cover malformed ABI, unsupported types, semantic drift, invalid model output, wrong executor, stale revision, wrong chain, expiry, revoke and direct executor invocation.
+- Frontend tests cover ABI/raw decoding, malformed inputs and finalized-receipt checks.
 
-1. Deploy exact source with test wallet A as governance authority and compare complete deployed-source SHA-256. The primary wallet performs deployment only.
-2. Register a proposal with a distinct executor wallet.
-3. Publish deployment-bound aligned and adversarial evidence pairs at immutable commits.
-4. Run aligned, hidden-call/privilege, digest mismatch, identity mismatch, stale revision, expiry, recovery, wrong executor, changed bundle and replay paths on Studionet.
-5. Confirm failed paths preserve `ticket_used=false` and `execution_nonce=0`; confirm the valid path increments exactly once.
-6. Bind the frontend to the verified address, test wallet/account/network changes and one signed production journey.
+## Live evidence
 
-The deployment-bound acquisition, failure, conflict, recovery, authorization and replay paths are recorded in `verification/studionet-lifecycle.md`. Frontend wallet/account/network interaction remains available for reviewer reproduction against the configured Studionet address.
+The previous v2 evidence was removed because it authenticated human-written manifests and does not prove v3. The complete two-wallet v3 lifecycle is recorded in [`verification/studionet-v3-lifecycle.md`](verification/studionet-v3-lifecycle.md).
+
+Completed checkpoints:
+
+1. Deployed `MandateCalldataDriftGuard` v3 with the governance wallet.
+2. Deploy `GuardedCalldataExecutor` with the new guard address.
+3. Register a proposal binding the execution wallet and explicit policy.
+4. Lock ABI plus raw calldata with target = executor and the actual chain ID.
+5. Assess to `ALIGNED`.
+6. Execute with the bound wallet and capture parent plus triggered child transaction.
+7. Read back guard state (`EXECUTION_QUEUED`, consumed, nonce 1) and executor state (same bytes and receipt, execution count 1, recipient balance increased by the exact decoded amount).
+8. Record changed-byte, wrong-wallet, stale, expired and replay failures with unchanged state.
+9. Bound the frontend production environment to the new guard and rebuilt it. Cloudflare redeployment is the final release step.

@@ -1,38 +1,45 @@
-# Design and threat model
+# V3 design and threat model
 
 ## Proof obligation
 
-Before issuing a single-use execution ticket, establish that every effect in a fixed decoded call manifest is explicitly covered by a fixed DAO mandate: targets and recipients are disclosed, amounts do not exceed authority, no privilege or upgrade is introduced, and ordering does not create an undisclosed effect.
+The guard authenticates the bytes that will be sent downstream, not a human-written decoding. Governance locks a canonical single-function ABI, target, chain ID, native value, raw calldata and expiry. Deterministic code derives the Ethereum selector from `name(types)` with Keccak-256, requires it to match both the ABI selector and the first four calldata bytes, validates canonical static ABI encoding, decodes every argument and commits both Keccak-256 and SHA-256 of the complete calldata.
 
-The evidence does **not** prove that a DAO vote occurred or that arbitrary bytes will be executed by an external chain. Deployment explicitly binds a separate governance-authority wallet. That authority registers the governance identity, repository, executor and policy; the deploying wallet receives no operational method. The ticket is an authorization receipt for the exact committed manifest; an integrating executor must separately bind its actual execution to that manifest.
+Only the authenticated decoded tuple is presented to decentralized semantic judgment. `ALIGNED` requires target, function, arguments and value to be allowed and `material_drift=false`. Invalid ABI, malformed bytes, ambiguous model output or disagreement cannot authorize execution.
 
-## Evidence topology
-
-This mechanism uses a paired-document proof rather than a single beneficial narrative. The authority fixes one repository and policy at proposal creation. A revision then fixes one Git commit, two distinct paths, both complete-byte SHA-256 commitments and an expiry. Validators independently fetch both GitHub raw artifacts. Deterministic code checks size, digest, shared identities, call count, order indices, target addresses, selectors, values and decoded action bounds before the model runs.
-
-The model compares each decoded effect against the mandate and returns only six booleans. Strict consensus covers every consequential boolean. `ALIGNED` requires five positive predicates to be exactly true and `material_drift` to be exactly false. Error, missing data, malformed output, mismatch or uncertainty becomes `UNRESOLVED`.
-
-## Consequence and lifecycle
+## Enforced execution path
 
 ```text
-DRAFT → PENDING → ALIGNED | MATERIAL_DRIFT | UNRESOLVED
-                         ↓
-                 CONSUMED (exact executor, revision, digest, expiry; once)
-
-Any unused revision may be superseded or revoked by governance.
+governance policy + canonical ABI + raw calldata
+                         |
+          deterministic selector/length/decode
+                         |
+               decentralized assessment
+                         |
+          exact-byte, chain, target, value ticket
+                         |
+       bound executor calls execute_exact_calldata
+                         |
+        atomic consumption + finalized IC message
+                         |
+       GuardedCalldataExecutor.execute_calldata
 ```
 
-Assessment never executes a call. `consume_execution_ticket` is a separate deterministic boundary restricted to the registered executor. It checks current revision, `ALIGNED`, exact bundle digest, fresh expiry and unused state, then atomically increments a per-proposal execution nonce. Failed calls cannot increment it.
+The downstream executor rejects direct calls from every address except the guard contract. The guard checks executor identity, revision, status, expiry, current chain and both complete-byte hashes before atomically consuming the ticket. It then emits the exact raw calldata and ticket receipt to the registered downstream Intelligent Contract on finalization. The reference executor independently decodes `transfer(address,uint256)` and applies the amount to its persistent credit ledger. Replay cannot emit a second message.
+
+## Supported ABI surface
+
+V3 deliberately supports bounded static inputs: `address`, `uint256`, `bool`, and `bytes32`, with one to eight inputs and at most 1,024 calldata bytes. Unsupported dynamic or nested ABI types fail closed rather than being partially decoded.
 
 ## Threat model
 
-- Attacker wants an execution ticket for a hidden recipient, increased transfer, extra call, unsafe ordering or privilege escalation.
-- They may submit misleading decoded text through a governance-controlled repository, but cannot change the repository, policy, executor, fixed commit, hashes or revision after locking without an owner transition visible on-chain.
-- Full-byte digests prevent content substitution. Shared identities prevent cross-proposal and cross-contract reuse.
-- Deterministic call-shape checks prevent malformed manifests from reaching semantic judgment.
-- Any single false positive prerequisite blocks `ALIGNED`; wrong executor, changed digest, stale revision, expiry and replay are rejected deterministically.
-- Honest limitation: the deployed contract validates a decoded manifest, not raw EVM calldata or an external Governor vote. Production integration must authenticate decoding and make the downstream executor consume this ticket before executing the same bundle.
+- Selector substitution fails because selector = Keccak-256(`name(types)`) = calldata prefix is enforced.
+- Recipient, amount, boolean, bytes32, padding, length or trailing-data changes alter the exact-byte hashes and cannot consume the ticket.
+- Target, chain ID, native value, revision, executor and expiry are stored in the ticket and checked at consumption.
+- Only governance may register policy and lock bytes; only the bound execution wallet may trigger execution.
+- Semantic drift, invalid model shape and consensus uncertainty never authorize.
+- Consumption precedes message emission in one transaction; successful consumption prevents replay.
+- The target executor independently requires `sender_address == guard`.
 
-## Material distinction
+## Honest platform boundary
 
-This is not a renamed vesting or evidence-release gate. It compares two independently committed artifacts, deterministically validates an ordered multi-call graph, reaches a six-dimensional semantic compatibility verdict, and issues an exact-manifest ticket to a separately bound executor. It has no custody, token ledger, payout, beneficiary, milestone, cancellation semantics or linear schedule. Persistent behavior is an execution nonce and consumed bundle authorization, not asset accounting.
+This implementation exercises a real GenLayer Intelligent Contract to Intelligent Contract message. GenLayer documentation states that arbitrary EVM contract interaction beyond value transfers is not implemented in Studio. Therefore this project does not claim that Studio executed arbitrary Ethereum calldata against an EVM contract. Production EVM integration can replace the reference downstream Intelligent Contract with an external-message adapter when that network feature is available, while preserving the same exact-byte ticket.
